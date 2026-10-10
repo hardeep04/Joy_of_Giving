@@ -1,0 +1,17 @@
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.page h1 {
+  color: #166534;
+}
+
+.campaign-card {
+  margin-top: 24px;
+  padding: 24px;
+  background: white;
+  border: 1px solid #dce5df;
+  border-radius: 12px;
+}

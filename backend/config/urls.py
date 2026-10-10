@@ -22,5 +22,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/campaigns/", include("campaigns.urls")),
     # include() - sends URLs beginning with api/campaigns/ to the app's URL file.
-    
+    path("api/auth/", include("accounts.urls")),
 ]

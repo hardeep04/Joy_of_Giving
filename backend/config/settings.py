@@ -34,7 +34,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'campaigns',
-
+    'accounts',
     
     'django.contrib.admin',
     'django.contrib.auth',
@@ -130,3 +130,9 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+#added manually for CSRF protection
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
