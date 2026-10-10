@@ -10,6 +10,7 @@ type CampaignCardProps = {
   creatorUsername: string;
   showEdit?: boolean;
   onDeleted?: (id: number) => void;
+  image: string | null;
 };
 
 function CampaignCard({
@@ -18,11 +19,24 @@ function CampaignCard({
   description,
   targetAmount,
   creatorUsername,
+  image,
   showEdit = false,
   onDeleted,
 }: CampaignCardProps) {
   return (
     <article className="card h-100 shadow-sm">
+
+      <img
+        src={image || "/images/default-campaign.jpg"}
+        alt={`Campaign: ${title}`}
+        className="card-img-top"
+        loading="lazy"
+        style={{
+          height: "220px",
+          objectFit: "cover",
+        }}
+      />
+
       <div className="card-body">
         <h2 className="card-title h5">{title}</h2>
         

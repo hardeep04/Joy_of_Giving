@@ -8,6 +8,11 @@ class Campaign(models.Model):
     title = models.CharField(max_length=150)
     description = models.TextField()
 
+    image = models.ImageField(
+        upload_to="campaigns/",
+        blank=True,
+    )
+
     target_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,

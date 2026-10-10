@@ -6,4 +6,5 @@ export type Campaign = {
   creator: number;
   created_at: string;
   creator_username: string;
+  image: string | null;
 };

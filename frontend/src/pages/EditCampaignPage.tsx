@@ -9,7 +9,7 @@ function EditCampaignPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
-  
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,174 +22,197 @@ function EditCampaignPage() {
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState("");
-  
+
+  const [image, setImage] = useState<File | null>(null);
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+
+  const [removeImage, setRemoveImage] = useState(false);
+
   useEffect(() => {
-  let ignore = false;
+    let ignore = false;
 
-  async function checkLogin() {
-    try {
-      const response = await fetch("/api/auth/me/");
+    async function checkLogin() {
+      try {
+        const response = await fetch("/api/auth/me/");
 
-      if (!response.ok) {
-        throw new Error("Could not check your login status.");
-      }
-
-      const data: { is_authenticated: boolean } =
-        await response.json();
-
-      if (ignore) return;
-
-      if (!data.is_authenticated) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      setCheckingAuth(false);
-    } catch {
-      if (!ignore) {
-        setAuthError(
-          "Could not check your login status. Please refresh and try again."
-        );
-        setCheckingAuth(false);
-      }
-    }
-  }
-
-  checkLogin();
-
-  return () => {
-    ignore = true;
-  };
-}, [navigate]);
-
-useEffect(() => {
-  let ignore = false;
-
-  async function loadCampaign() {
-    setLoadingCampaign(true);
-    setLoadError("");
-
-    try {
-      const response = await fetch(`/api/campaigns/${id}/edit/`);
-
-      if (response.status === 401 || response.status === 403) {
-        if (!ignore) {
-          navigate("/login", { replace: true });
+        if (!response.ok) {
+          throw new Error("Could not check your login status.");
         }
-        return;
-      }
 
-      if (response.status === 404) {
-        throw new Error(
-          "Campaign not found, or you do not have permission to edit it."
-        );
-      }
+        const data: { is_authenticated: boolean } =
+          await response.json();
 
-      if (!response.ok) {
-        throw new Error("Could not load the campaign.");
-      }
+        if (ignore) return;
 
-      const data: Campaign = await response.json();
+        if (!data.is_authenticated) {
+          navigate("/login", { replace: true });
+          return;
+        }
 
-      if (!ignore) {
-        setTitle(data.title);
-        setDescription(data.description);
-        setTargetAmount(data.target_amount);
-      }
-    } catch (err) {
-      if (!ignore) {
-        setLoadError(
-          err instanceof Error ? err.message : "Something went wrong."
-        );
-      }
-    } finally {
-      if (!ignore) {
-        setLoadingCampaign(false);
+        setCheckingAuth(false);
+      } catch {
+        if (!ignore) {
+          setAuthError(
+            "Could not check your login status. Please refresh and try again."
+          );
+          setCheckingAuth(false);
+        }
       }
     }
-  }
 
-  loadCampaign();
+    checkLogin();
 
-  return () => {
-    ignore = true;
-  };
-}, [id, navigate]);
+    return () => {
+      ignore = true;
+    };
+  }, [navigate]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadCampaign() {
+      setLoadingCampaign(true);
+      setLoadError("");
+
+      try {
+        const response = await fetch(`/api/campaigns/${id}/edit/`);
+
+        if (response.status === 401 || response.status === 403) {
+          if (!ignore) {
+            navigate("/login", { replace: true });
+          }
+          return;
+        }
+
+        if (response.status === 404) {
+          throw new Error(
+            "Campaign not found, or you do not have permission to edit it."
+          );
+        }
+
+
+        if (!response.ok) {
+          throw new Error("Could not load the campaign.");
+        }
+
+        const data: Campaign = await response.json();
+
+        if (!ignore) {
+          setTitle(data.title);
+          setDescription(data.description);
+          setTargetAmount(data.target_amount);
+          setCurrentImage(data.image);
+          setImage(null);
+          setRemoveImage(false);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setLoadError(
+            err instanceof Error ? err.message : "Something went wrong."
+          );
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingCampaign(false);
+        }
+      }
+    }
+
+    loadCampaign();
+
+    return () => {
+      ignore = true;
+    };
+  }, [id, navigate]);
 
 
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-  event.preventDefault();
-  setError("");
+    event.preventDefault();
+    setError("");
 
-  if (!title.trim() || !description.trim()) {
-    setError("Title and description cannot be only spaces.");
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    const csrfResponse = await fetch("/api/auth/csrf/");
-
-    if (!csrfResponse.ok) {
-      throw new Error("Could not prepare the request.");
+    if (!title.trim() || !description.trim()) {
+      setError("Title and description cannot be only spaces.");
+      return;
     }
 
-    const csrfData: { csrfToken: string } = await csrfResponse.json();
+    setSubmitting(true);
 
-    const response = await fetch(`/api/campaigns/${id}/edit/`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": csrfData.csrfToken,
-      },
-      body: JSON.stringify({
-        title: title.trim(),
-        description: description.trim(),
-        target_amount: targetAmount,
-      }),
-    });
+    try {
+      const csrfResponse = await fetch("/api/auth/csrf/");
 
-    if (!response.ok) {
-
-      if (response.status === 404) {
-        throw new Error(
-          "Campaign not found, or you do not have permission to edit it."
-        );
+      if (!csrfResponse.ok) {
+        throw new Error("Could not prepare the request.");
       }
 
-      if (response.status === 400) {
-        const errors: Record<string, string[]> = await response.json();
+      const csrfData: { csrfToken: string } =
+        await csrfResponse.json();
 
-        const message = Object.entries(errors)
-          .map(([field, messages]) => `${field}: ${messages.join(" ")}`)
-          .join(" ");
+      const formData = new FormData();
 
-        throw new Error(message || "Please check your form values.");
+      formData.append("title", title.trim());
+      formData.append("description", description.trim());
+      formData.append("target_amount", targetAmount);
+
+      if (removeImage) {
+        formData.append("remove_image", "true");
+      } else if (image) {
+        formData.append("image", image);
       }
 
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(
-          "Editing was denied. Check that you are logged in, then try again."
-        );
+      const response = await fetch(`/api/campaigns/${id}/edit/`, {
+        method: "PATCH",
+        headers: {
+          "X-CSRFToken": csrfData.csrfToken,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(
+            "Campaign not found, or you do not have permission to edit it."
+          );
+        }
+
+        if (response.status === 400) {
+          const errors: Record<string, string[] | string> =
+            await response.json();
+
+          const message = Object.entries(errors)
+            .map(([field, messages]) => {
+              const text = Array.isArray(messages)
+                ? messages.join(" ")
+                : messages;
+
+              return `${field}: ${text}`;
+            })
+            .join(" ");
+
+          throw new Error(message || "Please check your form values.");
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(
+            "Update was denied. Check your login and permissions."
+          );
+        }
+
+        throw new Error("Could not save your changes.");
       }
 
-      throw new Error("Could not edit the campaign.");
+      const updatedCampaign: { id: number } =
+        await response.json();
+
+      navigate(`/campaigns/${updatedCampaign.id}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Something went wrong."
+      );
+    } finally { 
+      setSubmitting(false);
     }
-
-    const updatedCampaign: { id: number } = await response.json();
-
-    navigate(`/campaigns/${updatedCampaign.id}`);
-  } catch (err) {
-    setError(
-      err instanceof Error ? err.message : "Something went wrong."
-    );
-  } finally {
-    setSubmitting(false);
   }
-}
-
 
 
   if (checkingAuth) {
@@ -248,9 +271,9 @@ useEffect(() => {
 
       {error && (
         <div className="alert alert-danger" role="alert">
-            {error}
+          {error}
         </div>
-     )}
+      )}
 
       <form onSubmit={handleSubmit} className="mt-4">
         <div className="mb-3">
@@ -298,15 +321,72 @@ useEffect(() => {
           />
         </div>
 
+        <div className="mb-3">
+          <p className="form-label">Current image</p>
+
+          <img
+            src={
+              removeImage
+                ? "/images/default-campaign.jpg"
+                : currentImage || "/images/default-campaign.jpg"
+            }
+            alt="Current campaign"
+            className="img-thumbnail d-block mb-3"
+            style={{
+              width: "240px",
+              height: "160px",
+              objectFit: "cover",
+            }}
+          />
+
+          <label htmlFor="edit-campaign-image" className="form-label">
+            Replace image (optional)
+          </label>
+
+          {currentImage && (
+            <div className="form-check mt-3">
+              <input
+                id="remove-campaign-image"
+                type="checkbox"
+                className="form-check-input"
+                checked={removeImage}
+                onChange={(event) => setRemoveImage(event.target.checked)}
+              />
+
+              <label
+                htmlFor="remove-campaign-image"
+                className="form-check-label"
+              >
+                Remove current image and use the default
+              </label>
+            </div>
+          )}
+
+          <input
+            id="edit-campaign-image"
+            type="file"
+            className="form-control"
+            accept="image/*"
+            disabled={removeImage}
+            onChange={(event) =>
+              setImage(event.target.files?.[0] ?? null)
+            }
+          />
+
+          <div className="form-text">
+            Leave this empty to keep the current image.
+          </div>
+        </div>
+
         <button
-            type="submit"
-            className="btn btn-success"
-            disabled={submitting}
+          type="submit"
+          className="btn btn-success"
+          disabled={submitting}
         >
-            {submitting ? "Saving..." : "Save changes"}
+          {submitting ? "Saving..." : "Save changes"}
         </button>
 
-        
+
       </form>
     </main>
   );

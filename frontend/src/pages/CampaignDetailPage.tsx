@@ -69,13 +69,23 @@ function CampaignDetailPage() {
         </div>
       )}
 
+
       {!loading && !error && campaign && (
         <article className="card shadow-sm">
+          <img
+            src={campaign.image || "/images/default-campaign.jpg"}
+            alt={`Campaign: ${campaign.title}`}
+            className="card-img-top"
+            style={{
+              maxHeight: "450px",
+              objectFit: "contain",
+            }}
+          />
           <div className="card-body p-4">
             <h1 className="text-success">{campaign.title}</h1>
-              <p className="text-secondary small">
-                Posted by <span className="fw-semibold">{campaign.creator_username}</span>
-              </p>
+            <p className="text-secondary small">
+              Posted by <span className="fw-semibold">{campaign.creator_username}</span>
+            </p>
             <p style={{ whiteSpace: "pre-wrap" }}>
               {campaign.description}
             </p>

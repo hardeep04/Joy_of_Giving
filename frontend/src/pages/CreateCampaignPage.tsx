@@ -7,7 +7,7 @@ function CreateCampaignPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
-  
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -16,132 +16,147 @@ function CreateCampaignPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState("");
 
+  const [image, setImage] = useState<File | null>(null);
+
   useEffect(() => {
-  let ignore = false;
+    let ignore = false;
 
-  async function checkLogin() {
-    try {
-      const response = await fetch("/api/auth/me/");
+    async function checkLogin() {
+      try {
+        const response = await fetch("/api/auth/me/");
 
-      if (!response.ok) {
-        throw new Error("Could not check your login status.");
-      }
+        if (!response.ok) {
+          throw new Error("Could not check your login status.");
+        }
 
-      const data: { is_authenticated: boolean } =
-        await response.json();
+        const data: { is_authenticated: boolean } =
+          await response.json();
 
-      if (ignore) return;
+        if (ignore) return;
 
-      if (!data.is_authenticated) {
-        navigate("/login", { replace: true });
-        return;
-      }
+        if (!data.is_authenticated) {
+          navigate("/login", { replace: true });
+          return;
+        }
 
-      setCheckingAuth(false);
-    } catch {
-      if (!ignore) {
-        setAuthError(
-          "Could not check your login status. Please refresh and try again."
-        );
         setCheckingAuth(false);
+      } catch {
+        if (!ignore) {
+          setAuthError(
+            "Could not check your login status. Please refresh and try again."
+          );
+          setCheckingAuth(false);
+        }
       }
     }
-  }
 
-  checkLogin();
+    checkLogin();
 
-  return () => {
-    ignore = true;
-  };
-}, [navigate]);
+    return () => {
+      ignore = true;
+    };
+  }, [navigate]);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-  event.preventDefault();
-  setError("");
+    event.preventDefault();
+    setError("");
 
-  if (!title.trim() || !description.trim()) {
-    setError("Title and description cannot be only spaces.");
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    const csrfResponse = await fetch("/api/auth/csrf/");
-
-    if (!csrfResponse.ok) {
-      throw new Error("Could not prepare the request.");
+    if (!title.trim() || !description.trim()) {
+      setError("Title and description cannot be only spaces.");
+      return;
     }
 
-    const csrfData: { csrfToken: string } = await csrfResponse.json();
+    setSubmitting(true);
 
-    const response = await fetch("/api/campaigns/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": csrfData.csrfToken,
-      },
-      body: JSON.stringify({
-        title: title.trim(),
-        description: description.trim(),
-        target_amount: targetAmount,
-      }),
-    });
+    try {
+      const csrfResponse = await fetch("/api/auth/csrf/");
 
-    if (!response.ok) {
-      if (response.status === 400) {
-        const errors: Record<string, string[]> = await response.json();
-
-        const message = Object.entries(errors)
-          .map(([field, messages]) => `${field}: ${messages.join(" ")}`)
-          .join(" ");
-
-        throw new Error(message || "Please check your form values.");
+      if (!csrfResponse.ok) {
+        throw new Error("Could not prepare the request.");
       }
 
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(
-          "Creation was denied. Check that you are logged in, then try again."
-        );
+      const csrfData: { csrfToken: string } =
+        await csrfResponse.json();
+
+      const formData = new FormData();
+
+      formData.append("title", title.trim());
+      formData.append("description", description.trim());
+      formData.append("target_amount", targetAmount);
+
+      if (image) {
+        formData.append("image", image);
       }
 
-      throw new Error("Could not create the campaign.");
+      const response = await fetch("/api/campaigns/", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrfData.csrfToken,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        if (response.status === 400) {
+          const errors: Record<string, string[] | string> =
+            await response.json();
+
+          const message = Object.entries(errors)
+            .map(([field, messages]) => {
+              const text = Array.isArray(messages)
+                ? messages.join(" ")
+                : messages;
+
+              return `${field}: ${text}`;
+            })
+            .join(" ");
+
+          throw new Error(message || "Please check your form values.");
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(
+            "Creation was denied. Check that you are logged in, then try again."
+          );
+        }
+
+        throw new Error("Could not create the campaign.");
+      }
+
+      const newCampaign: { id: number } = await response.json();
+
+      navigate(`/campaigns/${newCampaign.id}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Something went wrong."
+      );
+    } finally {
+      setSubmitting(false);
     }
-
-    const newCampaign: { id: number } = await response.json();
-
-    navigate(`/campaigns/${newCampaign.id}`);
-  } catch (err) {
-    setError(
-      err instanceof Error ? err.message : "Something went wrong."
-    );
-  } finally {
-    setSubmitting(false);
   }
-}
 
 
 
   if (checkingAuth) {
-  return (
-    <main className="container py-5">
-      <p>Checking login status...</p>
-    </main>
-  );
-}
+    return (
+      <main className="container py-5">
+        <p>Checking login status...</p>
+      </main>
+    );
+  }
 
-if (authError) {
-  return (
-    <main className="container py-5">
-      <div className="alert alert-danger" role="alert">
-        {authError}
-      </div>
-      <Link to="/" className="btn btn-outline-success">
-        Back to campaigns
-      </Link>
-    </main>
-  );
-}
+  if (authError) {
+    return (
+      <main className="container py-5">
+        <div className="alert alert-danger" role="alert">
+          {authError}
+        </div>
+        <Link to="/" className="btn btn-outline-success">
+          Back to campaigns
+        </Link>
+      </main>
+    );
+  }
 
 
   return (
@@ -157,9 +172,9 @@ if (authError) {
 
       {error && (
         <div className="alert alert-danger" role="alert">
-            {error}
+          {error}
         </div>
-     )}
+      )}
 
       <form onSubmit={handleSubmit} className="mt-4">
         <div className="mb-3">
@@ -207,15 +222,35 @@ if (authError) {
           />
         </div>
 
+        <div className="mb-3">
+          <label htmlFor="campaign-image" className="form-label">
+            Campaign image (optional)
+          </label>
+
+          <input
+            id="campaign-image"
+            type="file"
+            className="form-control"
+            accept="image/*"
+            onChange={(event) =>
+              setImage(event.target.files?.[0] ?? null)
+            }
+          />
+
+          <div className="form-text">
+            If you don’t upload an image, a default image will be displayed.
+          </div>
+        </div>
+
         <button
-            type="submit"
-            className="btn btn-success"
-            disabled={submitting}
+          type="submit"
+          className="btn btn-success"
+          disabled={submitting}
         >
-            {submitting ? "Creating..." : "Create campaign"}
+          {submitting ? "Creating..." : "Create campaign"}
         </button>
 
-        
+
       </form>
     </main>
   );

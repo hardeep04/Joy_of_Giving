@@ -93,6 +93,7 @@ function MyCampaignsPage() {
                     description={campaign.description}
                     targetAmount={Number(campaign.target_amount)}
                     creatorUsername={campaign.creator_username}
+                    image={campaign.image}
                     showEdit = {true}
                     onDeleted={handleCampaignDeleted}
                   />

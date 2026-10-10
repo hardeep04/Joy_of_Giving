@@ -7,6 +7,7 @@ function HomePage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -36,6 +37,41 @@ function HomePage() {
     }
 
     loadCampaigns();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadCurrentUser() {
+      try {
+        const response = await fetch("/api/auth/me/");
+
+        if (!response.ok) {
+          throw new Error("Could not check login status.");
+        }
+
+        const data: {
+          is_authenticated: boolean;
+          user: { id: number; username: string } | null;
+        } = await response.json();
+
+        if (!ignore) {
+          setCurrentUserId(
+            data.is_authenticated && data.user ? data.user.id : null
+          );
+        }
+      } catch {
+        if (!ignore) {
+          setCurrentUserId(null);
+        }
+      }
+    }
+
+    loadCurrentUser();
 
     return () => {
       ignore = true;
@@ -90,11 +126,13 @@ function HomePage() {
             {filteredCampaigns.map((campaign) => (
               <div className="col-12 col-md-6" key={campaign.id}>
                 <CampaignCard
-                  id = {campaign.id}
+                  id={campaign.id}
                   title={campaign.title}
                   description={campaign.description}
                   targetAmount={Number(campaign.target_amount)}
                   creatorUsername={campaign.creator_username}
+                  image={campaign.image}
+                  showEdit={campaign.creator === currentUserId}
                 />
               </div>
             ))}
