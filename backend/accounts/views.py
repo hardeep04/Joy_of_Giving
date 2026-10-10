@@ -18,6 +18,21 @@ from django.contrib.auth import authenticate, login, logout
 
 from django.contrib.auth.forms import UserCreationForm
 
+
+import uuid
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
+
+from google.auth.exceptions import GoogleAuthError
+from google.auth.transport.requests import Request as GoogleRequest
+from google.oauth2 import id_token
+
+from .models import GoogleAccount
+
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def current_user(request):
@@ -159,3 +174,145 @@ def register_user(request):
         },
         status=201,
     )
+
+
+@require_POST
+@csrf_protect
+def google_login(request):
+    if not settings.GOOGLE_CLIENT_ID:
+        return JsonResponse(
+            {"detail": "Google sign-in is not configured."},
+            status=503,
+        )
+
+    try:
+        data = json.loads(request.body)
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse(
+            {"detail": "Invalid JSON."},
+            status=400,
+        )
+
+    if not isinstance(data, dict):
+        return JsonResponse(
+            {"detail": "Expected a JSON object."},
+            status=400,
+        )
+
+    credential = data.get("credential")
+
+    if not isinstance(credential, str) or not credential:
+        return JsonResponse(
+            {"detail": "Google credential is required."},
+            status=400,
+        )
+
+    try:
+        claims = id_token.verify_oauth2_token(
+            credential,
+            GoogleRequest(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        return JsonResponse(
+            {"detail": "Invalid or expired Google credential."},
+            status=401,
+        )
+    except GoogleAuthError:
+        return JsonResponse(
+            {"detail": "Could not verify Google sign-in. Try again."},
+            status=503,
+        )
+
+    google_sub = claims.get("sub")
+    email = claims.get("email")
+
+    if (
+        not isinstance(google_sub, str)
+        or not google_sub
+        or not isinstance(email, str)
+        or not email
+        or claims.get("email_verified") is not True
+    ):
+        return JsonResponse(
+            {"detail": "A verified Google account is required."},
+            status=401,
+        )
+
+    account = (
+        GoogleAccount.objects
+        .select_related("user")
+        .filter(google_sub=google_sub)
+        .first()
+    )
+
+    if account:
+        user = account.user
+    else:
+        User = get_user_model()
+
+        # Matching email alone does not link an existing account.
+        if User.objects.filter(email__iexact=email).exists():
+            return JsonResponse(
+                {
+                    "detail": (
+                        "An account with this email already exists. "
+                        "Use its existing login method. "
+                        "Google account linking is not available yet."
+                    )
+                },
+                status=409,
+            )
+
+        try:
+            with transaction.atomic():
+                user = User(
+                    username=f"google_{uuid.uuid4().hex}",
+                    email=email,
+                    first_name=str(claims.get("given_name") or "")[:150],
+                    last_name=str(claims.get("family_name") or "")[:150],
+                )
+
+                user.set_unusable_password()
+                user.save()
+
+                GoogleAccount.objects.create(
+                    user=user,
+                    google_sub=google_sub,
+                )
+        except IntegrityError:
+            # Handle simultaneous first-time sign-in requests.
+            account = (
+                GoogleAccount.objects
+                .select_related("user")
+                .filter(google_sub=google_sub)
+                .first()
+            )
+
+            if account is None:
+                return JsonResponse(
+                    {"detail": "Could not create your account. Try again."},
+                    status=409,
+                )
+
+            user = account.user
+
+    if not user.is_active:
+        return JsonResponse(
+            {"detail": "This account is disabled."},
+            status=403,
+        )
+
+    login(
+        request,
+        user,
+        backend="django.contrib.auth.backends.ModelBackend",
+    )
+
+    return JsonResponse({
+        "detail": "Logged in successfully.",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+        },
+    })

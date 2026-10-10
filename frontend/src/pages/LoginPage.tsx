@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { SubmitEvent } from "react";
-
 import { Link, useLocation, useNavigate } from "react-router";
+
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 function LoginPage() {
   const [username, setUsername] = useState("");
@@ -10,17 +11,25 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
-
   const location = useLocation();
 
   const navigationState = location.state as
-  | {
-      message?: string;
-      returnTo?: string;
-    }
-  | null;
+    | {
+        message?: string;
+        returnTo?: string;
+      }
+    | null;
 
   const successMessage = navigationState?.message;
+
+  function handleLoginSuccess() {
+    const destination =
+      navigationState?.returnTo === "/campaigns/new"
+        ? "/campaigns/new"
+        : "/";
+
+    navigate(destination, { replace: true });
+  }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,7 +43,8 @@ function LoginPage() {
         throw new Error("Could not prepare login. Please try again.");
       }
 
-      const csrfData: { csrfToken: string } = await csrfResponse.json();
+      const csrfData: { csrfToken: string } =
+        await csrfResponse.json();
 
       const response = await fetch("/api/auth/login/", {
         method: "POST",
@@ -56,13 +66,7 @@ function LoginPage() {
         throw new Error("Login failed. Please try again.");
       }
 
-      const destination =
-        navigationState?.returnTo === "/campaigns/new"
-          ? "/campaigns/new"
-          : "/";
-
-      navigate(destination, { replace: true });
-      
+      handleLoginSuccess();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong."
@@ -85,10 +89,9 @@ function LoginPage() {
             Log in to create your fundraiser.
           </p>
 
-
           {successMessage && (
             <div className="alert alert-success" role="status">
-                {successMessage}
+              {successMessage}
             </div>
           )}
 
@@ -103,6 +106,7 @@ function LoginPage() {
               <label htmlFor="username" className="form-label">
                 Username
               </label>
+
               <input
                 id="username"
                 type="text"
@@ -118,6 +122,7 @@ function LoginPage() {
               <label htmlFor="password" className="form-label">
                 Password
               </label>
+
               <input
                 id="password"
                 type="password"
@@ -137,6 +142,8 @@ function LoginPage() {
               {submitting ? "Logging in..." : "Log in"}
             </button>
           </form>
+
+          <GoogleSignInButton onSuccess={handleLoginSuccess} />
 
           <p className="mt-3">
             New here? <Link to="/register">Create an account</Link>

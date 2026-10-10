@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { Link, useNavigate } from "react-router";
 
+import GoogleSignInButton from "../components/GoogleSignInButton";
+
 function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -158,7 +160,10 @@ function RegisterPage() {
               {submitting ? "Creating account..." : "Create account"}
             </button>
           </form>
-
+        
+          <GoogleSignInButton
+            onSuccess={() => navigate("/", { replace: true })}
+          />
           <p className="mt-3">
             Already have an account? <Link to="/login">Log in</Link>
           </p>
