@@ -2,6 +2,8 @@
 
 A full-stack fundraising application built with React, TypeScript, and Django REST Framework. Users can browse campaigns, create accounts, and manage their own fundraisers.
 
+**Live Demo:** [https://joyofgiving.pythonanywhere.com/](https://joyofgiving.pythonanywhere.com/)
+
 ## Tech Stack
 
 - **Frontend:** React, TypeScript, Vite, Bootstrap
